@@ -1,3 +1,5 @@
+Imperative code
+
 Functions can also be written using a procedural syntax. The following function returns the number of non-zero elements in a sequence of integers:
 
   Int count_non_zero(Int* xs) {
@@ -189,7 +191,9 @@ Normally you don't need to declare the variables used in a procedural block, as 
   type List[T] = empty_list, list(T, List[T]);
 
   List[T] seq2list(T* xs) {
-    l : List[T]; // Explicitly declaring the type of local variable "l" as "List[T]"
+    // Explicitly declaring the type of
+    // local variable "l" as "List[T]"
+    l : List[T];
 
     l = :empty_list;
     for x <- xs:
@@ -221,13 +225,14 @@ Cell also includes a couple of pseudo-imperative features, as some algorithms ar
 The same thing, by the way, happens with the {{_slice_(..)}} builtin function (which is aliased in the standard library by the function {{slice(..)}}, and used by other standard functions like {{take(..)}} or {{drop(..)}}): creating a subsequence is fast, because the newly created object only needs to store a pointer to the first element of the subsequence and its length.
 Going back to the functional insertion, the runtime needs to make a copy of the original sequence only in two cases: when it runs out of space at the end, in which case the entire sequence is reallocated with extra space, or when the next slot is already taken, likely because it was used by a previous insertion operation. You should take care to avoid the latter case, as much as possible. The following (buggy) function runs in O((N1+N2)^2), where N1 and N2 are the lengths of {{s1}} and {{s2}} respectively, because of the (useless, in this case) {{unused = (res | x);}} instruction:
 
-  T* append(T* s1, T* s2) {
+  T* concat(T* s1, T* s2) {
     res = s1;
     for x <- s2:
       unused = (res | x);
-      // The following instruction causes the reallocation of the underlying
-      // array at every iteration of the loop because the previous (useless)
-      // instruction has already allocated the next slot
+      // The following instruction causes the reallocation
+      // of the underlying array at every iteration of the
+      // loop because the previous (useless) instruction
+      // has already allocated the next slot
       res = (res | x);
     ;
     return res;

@@ -1,3 +1,5 @@
+Functions
+
 Functions in Cell have no side effects and are referentially transparent, but can be written in either a functional or a procedural style. We'll start with the functional style. Here are a few self-explanatory examples:
 
   Int max(Int x, Int y) = if x >= y then x else y;
@@ -44,7 +46,6 @@ Line comments begin with either {{//}} or {{##}}. The two are equivalent, but, b
 
 Currently there's no support for multiline comments.
 
-
 When symbols or tagged values are used inside expressions they have to be written with a leading {{:}} (save for {{true}} and {{false}} of course), so as to distinguish them from variables or constants in the case of symbols and function calls in the case of tagged values. That can be annoying especially when you're pasting inside your source code large chuncks of data that comes from somewhere else and which is usually written without the {{:}}, so in that case you can make use of a literal block {{ #{...} }}. Inside it you don't have to write the leading {{:}}, and you cannot access variables, constants, functions or use any other computational feature of the language. It's just data. As an example, the following two definition of the constant {{a_large_value}} are equivalent:
 
   Any a_large_value = (
@@ -59,17 +60,17 @@ When symbols or tagged values are used inside expressions they have to be writte
       ]
     );
 
-    Any a_large_value = #{(
-        alpha,
-        bravo,
-        meters(200),
-        seconds(3600),
-        [ charlie,
-          delta,
-          vector_3d(0.5, 0.3, 1.2),
-          a_tag(10, (a, b), [])
-        ]
-      )};
+  Any a_large_value = #{(
+      alpha,
+      bravo,
+      meters(200),
+      seconds(3600),
+      [ charlie,
+        delta,
+        vector_3d(0.5, 0.3, 1.2),
+        a_tag(10, (a, b), [])
+      ]
+    )};
 
 We've already seen the syntax for creating sequences. Their elements can of course be arbitrary expressions. The presence of some elements can also be made conditional. In the following examples, the first element is included only if {{n}} is greater than 0:
 
@@ -283,12 +284,9 @@ This is the list of all cell operators, in order of decreasing precedence:
   .
 
 Note that there are two versions of the {{-}} operator, the unary and binary ones.
-All binary operators associate from left to right, except for those that don't associate at all:
-
-  ^ == != ::   // Non-associative binary operators
-
+All binary operators associate from left to right, except for those that don't associate at all: {{^}}, {{==}}, {{!=}} and {{::}}.
 The arithmetic and comparison operators {{+}} {{-}} {{*}} {{/}} {{<}} {{>}} {{<=}} {{>=}} have the obvious meanings, and are defined for any combination of integers and floating point numbers. The binary {{-}} is also used to denote set difference. The exponentiation operator {{^}} is too defined for any combination of integers and floating point numbers, but it always returns a floating point number.
-The :: operator is used to test if a value belongs to a type, and returns a boolean value:
+The {{::}} operator is used to test if a value belongs to a type, and returns a boolean value:
 
   my_var :: MyType  // True if the value of "my_var" belongs to "MyType", false otherwise
 
@@ -311,13 +309,13 @@ The following operators can be overloaded: {{+}}, {{-}}, {{*}}, {{/}}, {{^}}, {{
 
 The function names are formed by the operator itself, with underscores where the operands should be, all enclosed in parentheses. As an example, let's define the operators {{+}}, {{*}} and unary {{-}} for boolean, as synonyms for {{or}}, {{and}} and {{not}} respectively:
 
-Bool (_+_) (Bool b1, Bool b2) = b1 or b2;
-Bool (_*_) (Bool b1, Bool b2) = b1 and b2;
-Bool  (-_) (Bool b)           = not b;
+  Bool (_+_) (Bool b1, Bool b2) = b1 or b2;
+  Bool (_*_) (Bool b1, Bool b2) = b1 and b2;
+  Bool  (-_) (Bool b)           = not b;
 
 Let's also define the operator {{[]}} for sequences, as a synonym of {{()}}:
 
-T (_[_]) (T* xs, Int i) = xs(i);
+  T (_[_]) (T* xs, Int i) = xs(i);
 
 
 Closures
@@ -328,10 +326,10 @@ Cell has support for closures, although it is very limited compared to what trul
 
 The second argument to the {{map(..)}} function is a closure that takes an argument of a generic type {{A}} and returns a value of another generic type {{B}}. That closure is applied to each element of {{s}} in turn. The type {{(A -> B)}} is a closure type. For a closure with multiple arguments, the general form of its type is:
 
-  (A -> R)
-  (A1 A2 -> R)
-  (A1 A2 A3 -> R)
-  (A1 A2 A3 ... An -> R)
+  // (A -> R)
+  // (A A2 -> R)
+  // (A A2 A3 -> R)
+  // (A A2 A3 ... An -> R)
 
 where {{A}}, {{A1}}, {{A2}}, ... {{An}} are the types of the argument(s), and {{R}} is the type of the result. The only place where closure types can appear is in the argument list of a function. A function cannot return a closure, and type definitions cannot make use of closure types, since regular data and closures cannot be mixed. Also, a closure cannot take other closures in turn as parameters: all of its arguments have to be regular values.
 Here are a few examples of how you can call a function that takes a closure argument:
@@ -344,7 +342,7 @@ Here are a few examples of how you can call a function that takes a closure argu
 
   [B*] map2([A*] ss, (A -> B) f) = [map(s, f) : s <- ss];  // Same as [(f(x) : x <- s) : s <- ss]
 
-The are two ways to provide a closure argument in a function call. The first option, if you don't need to capture any local variable, is to just pass the name of an existing function or closure. That's what {{square_all(..)}} and {{map2(..)}} do. The other option is to simply write the expression that constitutes the body of the closure, like in {{increment_all(..)}} and {{multiply_all(..)". Inside that expression you can use local variables (which will be captured by the closure) and you can refer to the argument of the closure with the symbol {{$}}, or {{$a}}, {{$b}}, {{$c}}... if the closure has more than one argument.
+The are two ways to provide a closure argument in a function call. The first option, if you don't need to capture any local variable, is to just pass the name of an existing function or closure. That's what {{square_all(..)}} and {{map2(..)}} do. The other option is to simply write the expression that constitutes the body of the closure, like in {{increment_all(..)}} and {{multiply_all(..)}}. Inside that expression you can use local variables (which will be captured by the closure) and you can refer to the argument of the closure with the symbol {{$}}, or {{$a}}, {{$b}}, {{$c}}... if the closure has more than one argument.
 
 
 Pattern matching
@@ -388,7 +386,7 @@ Patterns can also match tuples (that is, fixed length sequences):
 
 and tagged values with any tag. The following two functions accept as input any tagged value, and return the untagged value or the tag itself, respectively:
 
-  A untagged(<<+>(A)>) =
+  T untag(<<+>(T)>) =
     t?(v?) = v;
 
   Symbol tag(<<+>(Any)>) =
@@ -482,7 +480,6 @@ Builtin functions always have names that start and end with an underscore, and t
   _symb_()    // Returns a symbol given its textual representation: _symb_("any_symbol") == :any_symbol
   _isort_()   // Sorts the elements of a set in some implementation-defined order
   _tag_()     // Given a tagged value, returns the tag
-  _untag_()   // Given a tagged value, returns the value without the tag
   _print_()   // Returns a string containing the textual representation of any value
   _parse_()   // Given the textual representation of a value returns a Result[Any, Nat]
               // with either the value or the position of the error if parsing fails
@@ -527,19 +524,19 @@ Here's another example of incompatible polymorphic functions:
 
 {{Square2}}, {{Rectangle2}} and {{Circle2}}, are almost identical to {{Square}}, {{Rectangle}} and {{Circle}}, the only difference being that they are not tagged. Though clearly disjoint, they are all record types, which are just a special case of binary relations, and the compiler will reject polymorphic functions if more than one of them accepts any binary relation value as argument. This is the reason user-defined types have to be tagged if polymorphic behaviour is expected, so as to make them "different enough" to be accepted by the compiler.
 
-For functions that take more than one argument, it's sufficient that at least one of the arguments is "different enough", even if that argument alone is not enough to decide which function will be dispatched at runtime. Consider the following functions (only the signature is shown, not the implementation):
+For functions that take more than one argument, it's sufficient that at least one of the arguments is "different enough", even if that argument alone is not enough to decide which function will be dispatched at runtime. Consider the following functions:
 
-  Bool intersect(Square s1,     Square s2)      = ...
-  Bool intersect(Square s,      Rectangle r)    = ...
-  Bool intersect(Square s,      Circle c)       = ...
-  Bool intersect(Rectangle r,   Square s)       = ...
-  Bool intersect(Rectangle r1,  Rectangle r2)   = ...
-  Bool intersect(Rectangle r,   Circle c)       = ...
-  Bool intersect(Circle c,      Square s)       = ...
-  Bool intersect(Circle c,      Rectangle r)    = ...
-  Bool intersect(Circle c1,     Circle c2)      = ...
+  Bool covers(Square s1,     Square s2)      = s1.side >= s2.size;
+  Bool covers(Square s,      Rectangle r)    = s.side >= max(s.width, s.height);
+  Bool covers(Square s,      Circle c)       = s.side >= 2 * c.radius;
+  Bool covers(Rectangle r,   Square s)       = min(r.width, r.height) >= s.side;
+  Bool covers(Rectangle r1,  Rectangle r2)   = r1.width >= r2.width and r1.height >= r2.height;
+  Bool covers(Rectangle r,   Circle c)       = min(r.width, r.height) >= 2 * c.radius;
+  Bool covers(Circle c,      Square s)       = c.radius >= s.side / sqrt(2);
+  Bool covers(Circle c,      Rectangle r)    = c.radius >= sqrt(r.width^2 + r.height^2) / 2;
+  Bool covers(Circle c1,     Circle c2)      = c1.radius >= c2.radius;
 
-When {{intersect(..)}} is invoked with arguments of type {{Shape}} (defined before, it's the union of {{Square}}, {{Rectangle}} and {{Circle}}) the value of both arguments has to be inspected in order to decide which of the nine polymorphic functions has to be dispatched. But for the purpose of polymorphic compatibility all that is required is that, for every possible pair of {{intersect(..)}} functions, the types of either argument are "different enough", in the above-defined sense.
+When {{covers(..)}} is invoked with arguments of type {{Shape}} (defined before, it's the union of {{Square}}, {{Rectangle}} and {{Circle}}) the value of both arguments has to be inspected in order to decide which of the nine polymorphic functions has to be dispatched. But for the purpose of polymorphic compatibility all that is required is that, for every possible pair of {{covers(..)}} functions, the types of either argument are "different enough", in the above-defined sense.
 
 These stricter-than-necessary restrictions on the signatures of polymorphic functions are in place for two reason: first, they guarantee that the proper function can be dispatched quickly at runtime and second, they make the implementation easier. Future versions of the compiler will probably gradually relax them to some extent.
 

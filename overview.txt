@@ -1,3 +1,5 @@
+An overview of Cell
+
 The purpose of this section is to provide a bird's eye view of the Cell programming language, by emphasizing its unique features and explaining how it differs from every other programming language I know, in order to give you a sense of what it can be useful for.
 
 

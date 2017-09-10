@@ -1,8 +1,10 @@
+The data model
+
 One of the most important and distinctive features of Cell is the way it represents information. Every piece of information is represented as a value, and only as a value (as opposed to an "object"). All values, of all kinds, share a number of properties:
 
 Values do not expose their location in memory, or any other form of "identity". If, for example, the values contained in two different variables compare equal, there's no way to tell if the two variables are referring to the same location in memory, or if they are pointing to distinct memory locations that happen to have the same content. This is true for both atomic types, like booleans and integer or floating point numbers, and for composite types, like sequences or records.
 
-Every value has a literal, that is, a human-readable representation that can be used to denote that value in the code, and to display or store it in text form. Again, this is true for atomic values ("false", "42", "3.14159") and composite values ("[0, 1, 2, 3]", "point(x: 12, y: 5)") alike.
+Every value has a literal, that is, a human-readable representation that can be used to denote that value in the code, and to display or store it in text form. Again, this is true for atomic values ({{false}}, {{42}}, {{3.14159}}) and composite values ({{[0, 1, 2, 3]}}, {{point(x: 12, y: 5)}}) alike.
 
 There's no such thing as user-defined equality. The notion of equality is defined by the language itself (it is the most obvious one), for all values, and cannot be overridden. And if two values compare equal, then they can substitute each other in any expression, without changing its result (note that this is in general not true for user-defined equality, or for any kind of "deep" equality in a language with pointers or object ids). This is true even if those values are internally represented in different ways. The same (logical) sequence, for example, could be represented under the hood as an array or a list, depending on the circumstances, but those implementation details do not "leak" into the semantics of the language.
 
@@ -13,6 +15,7 @@ You cannot define new values. Yes, this too, sounds a bit bizarre. But all the v
 There is no aliasing of any sort, and values are, conceptually at least, immutables entities. You can assign a new value to an existing variable, and, under some specific circumstances, the language will be able to produce a new value by actually updating, under the hood, an existing one, but updating a variable will never result in any observable change in the content of any other variable. An alternative way to put this is to say that the content of a variable can be updated in place, but the language has value semantics for all data structures, including composite ones, so the act of modifying the content of a particular variable never affects other variables.
 
 With all that in mind, let's delve into the details.
+
 
 Atomic values
 
@@ -29,24 +32,25 @@ The third and last kind of atomic values is symbols. Lisp or Ruby programmers ar
 
 and invalid ones:
 
-  :1ab        // Invalid: starts with a number
-  :_ab        // Invalid: starts with an underscore
-  :ab_        // Invalid: ends with an underscore
-  :ab__cd     // Invalid: two consecutive underscores
-  :ABC        // Invalid: uppercase letters
+  ## :1ab        // Invalid: starts with a number
+  ## :_ab        // Invalid: starts with an underscore
+  ## :ab_        // Invalid: ends with an underscore
+  ## :ab__cd     // Invalid: two consecutive underscores
+  ## :ABC        // Invalid: uppercase letters
 
 In some cases (basically wherever symbols cannot be confused with variable or constant names) the initial colon can be ommitted. (More on this in the following chapters).
-Two symbols, :true and :false, are special, in that they are used to represent boolean values. Since they are ubiquitous, there’s no need to write the initial column: they are just written true and false, respectively.
+Two symbols, {{:true}} and {{:false}}, are special, in that they are used to represent boolean values. Since they are ubiquitous, there’s no need to write the initial column: they are just written {{true}} and {{false}}, respectively.
 Symbols are internally represented by integer numbers, but the specific numbers used to represent each symbol vary all the time and are just an implementation detail that is hidden from the programmer.
+
 
 Sequences
 
-Sequences are more or less the equivalent of arrays or list in other languages. You can create a sequence by enumerating its elements separated by commas and enclosed by parenthesis. A few examples:
+Sequences are more or less the equivalent of arrays or list in other languages. You can create a sequence by enumerating its elements separated by commas and enclosed by parenthesis. A few examples, starting with the empty sequence:
 
-  ()                                    // The empty sequence
-  (0, 1, 2, 3)                          // The sequence containing the integers 0, 1, 2 and 3, in this order
-  (:a, :b, 3.14159, 100)                // A sequence containing numbers and symbols
-  (:a, (1, 2, 3, (0.2)), (), (:b, :c))  // A sequence containing other sequences among other values.
+  ()
+  (0, 1, 2, 3)
+  (:a, :b, 3.14159, 100)
+  (:a, (1, 2, 3, (0.2)), (), (:b, :c))
 
 As an aside, since parenthesis are used to create sequences, when you need to specify the order of evaluation in a complex expression, you have to use braces:
 
@@ -59,28 +63,43 @@ The only exception to this rule is boolean expressions, which cannot contain seq
 
 Like all collection types, sequences can hold any kind of values, and can therefore also be used as tuples, that is, fixed-length sequences of heterogeneous values.
 
+
 Sets
 
 Sets differ from sequences in that the order of the elements doesn't matter, and duplicates are eliminated. They are enclosed in brackets:
 
-  []                                  // The empty set
-  [5, 12, 1, 6]                       // A set of four integers
-  [12, 6, 1, 5]                       // The same set as before (the order doesn't matter)
-  [1, 1, 1]                           // The set whose only element is the number 1 (duplicates are ignored)
-  [:a, (1, 2, 3), [0.51, :b], ([])]   // A set containing values of different types
+  []  // The empty set
+
+  // Two different ways to write the same set.
+  // The order of the elements doesn't matter
+  [5, 12, 1, 6]
+  [12, 6, 1, 5]
+
+  // The set whose only element is the number 1
+  // Duplicates are ignored
+  [1, 1, 1]
+
+  // A set containing values of different types
+  [:a, (1, 2, 3), [0.51, :b], ([])]
+
 
 Binary relations
 
 A binary relation is an unordered collection of (ordered) pairs of values, or in a more mathematical parlance, it is a subset of the cartesian product of two arbitrary sets (the definition of both sets and relations in Cell is basically the same as the standard mathematical one, if we restrict our attention to finite data structures only). Just like with sets, duplicates are eliminated. They are written between brackets, with pairs separated by a semicolon and elements of each pair separated by a comma. The empty relation is denoted by an empty pair of brackets, and it is exactly the same entity as the empty set.
 
-  []                                        // The empty relation (and also the empty set)
-  [0, :zero; 0, :nil; 1, :one; 2, :two]     // A relation between integers and symbols
-  [1, 1; 1, -1; 4, 2; 4, -2; 9, 3; 9, -3]   // A relation associating the numbers 1, 4 and 9 with all their square roots
+  []  // The empty relation (and also the empty set)
+
+  // A relation between integers and symbols
+  [0, :zero; 0, :nil; 1, :one; 2, :two]
+
+  // A relation associating the numbers 1, 4
+  // and 9 with all their square roots
+  [1, 1; 1, -1; 4, 2; 4, -2; 9, 3; 9, -3]
 
 One syntactical oddity is that, in order to distinguish them from a two-element set, binary relations that contain only one pair have to be written with a semicolon before the closing bracket:
 
-  [0, 1]      // The two-element set containing 0 and 1
-  [0, 1;]     // The binary relation containing the single pair 0, 1
+  [0, 1]  // The two-element set containing 0 and 1
+  [0, 1;] // The binary relation containing the single pair 0, 1
 
 Just like any other collection type, relations can contain any value, including composite ones:
 
@@ -90,14 +109,18 @@ Just like any other collection type, relations can contain any value, including 
     [[:a, :alpha; :b, :bravo], [2.71828]],  0
   ]
 
+
 Maps
 
 Maps (or associative arrays) are an important special case of binary relations: a binary relation is a map if and only if no two pairs in the relation have the same left element, or, using the terminology of relational databases, if the first column is a key for the relation. Another way to say that is that a map is a set of key/value pairs where each key is unique, and that a generic binary relation is more like a "multimap", since it may associate more than one value to any given key.
 One important thing to keep in mind is that you can apply to a map any operation that you would apply to a binary relation (since a map is a binary relation), but there are a few extra operations you can apply to a map that don't make sense in the more general case of a generic binary relations, such as looking up a value given its corresponding key.
 Maps also have a special syntax, where you use an arrow to separated the key from the value and commas to separate pairs:
 
-  [0 -> :a, 1 -> :b, 2 -> :c, 3 -> :d]  // A map from integer numbers to symbols
-  [:pi -> 3.14159]                      // A map with just one entry
+  // A map from integer numbers to symbols
+  [0 -> :a, 1 -> :b, 2 -> :c, 3 -> :d]
+
+  // A map with just one entry
+  [:pi -> 3.14159]
 
 The above notation is completely equivalent to [0, :a; 1, :b; 2, :c; 3, :d] and [:pi, 3.14159;], but it is used to guarantee that the value is actually a map in expressions containing variables: if w, x, y and z are variables, the two expressions [w, x; y, z] and [w -> x, y -> z] will produce exactly the same value if w is different from y, but the latter will fail if they are equal, while the former will succeed in either case.
 
@@ -107,15 +130,25 @@ Also note that every singleton binary relation is a map, so you can avoid the sy
   [0, 1;]     // The binary relation containing the single pair 0, 1
   [0 -> 1]    // Same as [0, 1;]
 
+
 Records
 
 Just like maps are a special case of binary relations, records are a special case of maps. A map is a record if (and only if) all of its keys are symbols. Since records are ubiquitous, they have their own syntactic sugar:
 
-  (left: -1.2, right: 7.5)  // Syntactic sugar for [:left -> -1.2, :right -> 7.5] and [:left, -1.2; :right -> 7.5]
-  (x: 15, y: 4, z: -7)      // Same as [:x -> 15, :y -> 4, :z -> -7] and [:x, 15; :y, 4; :z -> -7]
-  (ro: 2.0, theta: 1.5708)  // Same as [:ro -> 2.0, :theta -> 1.5708] and [:ro, 2.0; :theta, 1.5708]
+  // Syntactic sugar for [:left -> -1.2, :right -> 7.5]
+  // and [:left, -1.2; :right -> 7.5]
+  (left: -1.2, right: 7.5)
+
+  // Same as [:x -> 15, :y -> 4, :z -> -7]
+  // and [:x, 15; :y, 4; :z -> -7]
+  (x: 15, y: 4, z: -7)
+
+  // Same as [:ro -> 2.0, :theta -> 1.5708]
+  // and [:ro, 2.0; :theta, 1.5708]
+  (ro: 2.0, theta: 1.5708)
 
 Note that they are enclosed in parenthesis (not brackets), that key and value are separated by a colon and that symbol keys are written without any preceding colon. Remember also that since records are maps, which in turn are relations, all the operations that can be applied to binary relations and maps can also be applied to records, but not vice versa.
+
 
 Tagged values
 
@@ -128,12 +161,20 @@ The only type of composite value that is not a collection type is the tagged val
 
 Just like for symbols, there are contexts (that will be described later) where the initial colon is not required. There's also a bit of syntactic sugar: when the value enclosed between parentheses is a sequence or a record, there's no need to type the second set of parentheses. Also, if the value being tagged is a record, and the second pair of parentheses is omitted, the colon preceding the tagging symbol has to be omitted as well (in all contexts). A few examples:
 
-  point(x: 10, y: 25)             // Syntactic sugar for :point((x: 10, y: 25))
-  person(name: "John", age: 25)   // Syntactic sugar for :person([:name -> "John", :age -> 25])
-  :vector_3d(0.5, 0.3, 1.2)       // Syntactic sugar for :vector_3d((0.5, 0.3, 1.2))
-  :a_tag(10, (:a, :b), [])        // Syntactic sugar for :a_tag((10, (:a, :b), []))
+  // Syntactic sugar for :point((x: 10, y: 25))
+  point(x: 10, y: 25)
+
+  // Syntactic sugar for :person([:name -> "John", :age -> 25])
+  person(name: "John", age: 25)
+
+  // Syntactic sugar for :vector_3d((0.5, 0.3, 1.2))
+  :vector_3d(0.5, 0.3, 1.2)
+
+  // Syntactic sugar for :a_tag((10, (:a, :b), []))
+  :a_tag(10, (:a, :b), [])
 
 For reasons that we'll see later, when using records in Cell it's often necessary to tag them with a symbol (ideally one that describes their purpose).
+
 
 Ternary relations
 
@@ -166,11 +207,11 @@ Strings
 
 Strings in Cell are ordinary values built using the mechanisms seen above. The only special thing about them is that they have some syntactic sugar like in any other language. At their core, strings are just sequences of non-negative integer numbers, where each number is the ASCII/Unicode value of the corresponding character, tagged with the symbol :string. In their syntactically "sugared" representation, they are enclosed in double quotes. The following are different ways of writing exactly the same value:
 
-     "Hello world!\n"
-     :string(72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 33, 10)
-     :string((72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 33, 10))
+     "Hi there!\n"
+     :string(72, 105, 32, 116, 104, 101, 114, 101, 33, 10)
+     :string((72, 105, 32, 116, 104, 101, 114, 101, 33, 10))
 
-There are five special escape codes, \n, \t, \r \" and \\, and the generic numeric one, a backslash followed by exactly four hexadecimal digit, \XXXX, where the four digits represent the 16-bit character Unicode code point. If you need to use Unicode characters whose code point is equal to or higher than 2^16 and cannot be represented by a 16-bit number, for now you'll have to use the more cumbersome standard notation for values, without the syntactic sugar.
+There are five special escape codes, {{\n}}, {{\t}}, {{\r}} {{\"}} and {{\\}}, and the generic numeric one, a backslash followed by exactly four hexadecimal digit, {{\XXXX}}, where the four digits represent the 16-bit character Unicode code point. If you need to use Unicode characters whose code point is equal to or higher than 2^16 and cannot be represented by a 16-bit number, for now you'll have to use the more cumbersome standard notation for values, without the syntactic sugar.
 
 There's no separate character type, each character can be represented either by an integer number (its Unicode code point) or by a one-character string (more on this when we talk about types).
 
@@ -214,14 +255,12 @@ The first interesting consequence is that it becomes possible, and actually rela
 It is true, of course, that even commonly used languages like Java and C# can, to some extent, do similar things using their reflection/introspection API: it is more complicated, and it may not always work (what happens, for example, when a serialization function that makes use of the reflection API is applied to an object of a class (maybe one defined in the system libraries) that is either built-in, or partially defined in C? Will it still work?) but it can at least be made to work well enough in most situations.
 
 Other cases, though, tend to be far more difficult for those languages to handle. Consider, for example, the problem of deserializing data. Writing in Cell a function that can build any value from its textual representation (or, more generally, from a serialized form) is a bit more complicated that writing the corresponding printing/serialization function (because parsing is intrinsically more complex than printing), but it is still straighforward and works 100% of the time.
-This is not true for, say, Java or C#. What if, for example, the serialized data contains objects of a class that is not defined in the application that is trying to load that data? Or if that class is present, but has a different definition, maybe because the serialized data was created by an earlier version of the same application?
-Even the much simpler task of converting data from a relational database into native data structures, a process that is absolutely trivial in Cell, is a huge hassle in those languages. Just think of how much boilerplate code has to be written to deal with such a petty problem, and how much effort has gone into developing all those object-relational mapping frameworks.
+This is not true for, say, Java or C#. What if, for example, the serialized data contains objects of a class that is not defined in the application that is trying to load that data? Or if that class is present, but has a different definition, maybe because the serialized data was created by an earlier version of the same application? Even the much simpler task of converting data from a relational database into native data structures, a process that is absolutely trivial in Cell, is a huge hassle in those languages.
 
 In a language that supports features like orthogonal persistence and the ability to "replay" the execution of a program, any limitation in the ability to deal with data whose structure is unknown, or only partially known, would be too crippling (for reasons that will be extensively discussed in the following chapters) and a nominative data model/type system is just not an option.
 
 The problems created by non-structural languages are not limited to the handling of persisted data. Consider, for instance, data manipulation operations like merging records, adding or removing fields from them, or performing the equivalent of relational algebra operations like "project" or "join". What they all have in common is that they implicitly create new "types" of data structures. Nominative languages that prevent you from using data structures you've not explicitly declared severly limit your ability to use those declarative and low-ceremony data manipulation operations.
-There are, sure, some clumsy workarounds. C#, for example, has this weird notion of anonymous types (often used in LINQ expressions), which, being anonymous, cannot even be passed around to other functions in a type-safe way, and cannot have polymorphic methods. Functional languages like ML dialects and Haskell provide tuple types, which inject limited structural capabilities into an otherwise nominative type system. And even most object-oriented languages can provide a tuple type (tipically one with ugly syntax) by taking advantage of templates and generic programming.
-But none of these workarounds can match (or even come close to matching) the flexibility offered by a fully structural approach.
+There are, sure, some clumsy workarounds. C#, for example, has this weird notion of anonymous types (often used in LINQ expressions), which, being anonymous, cannot even be passed around to other functions in a type-safe way, and cannot have polymorphic methods. Functional languages like ML dialects and Haskell provide tuple types, which inject limited structural capabilities into an otherwise nominative type system. And even most object-oriented languages can provide a tuple type (tipically one with ugly syntax) by taking advantage of templates and generic programming. But none of these workarounds can match (or even come close to matching) the flexibility offered by a fully structural approach.
 
 Of course, not all is perfect and wonderful in the land of structural types, and there are trade-offs to be accepted if one chooses to go down that way. Probably the most important one is the complete lack of encapsulation, at least in the conventional sense. In Cell, values are entirely transparent, and can be inspected and manipulated without restrictions. Only their physical representation is hidden from view. The language does provide an important abstraction mechanism, protocols, but that's more the equivalent of "programming against an interface" that real encapsulation. But anyway, encapsulation (or lack thereof) is such an important topic that it deserves to be discussed separately, once we have a full picture of the language.
 
