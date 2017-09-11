@@ -74,9 +74,14 @@ and this is what the compiler would be left with after the second and last step:
 and neither of the above signatures can, on its own, handle two arguments of type {{Shape}}.
 The {{covers(..)}} family of functions are of course an example of multiple-dispatch polymorphism, but the same problem can happen even with functions that are dispatched based on the type of just one argument. Consider the following example (and remember there's no automatic conversion from integers to floating point numbers in Cell. Not yet, at least):
 
-  Square scale(Square square, Float ratio) = square(side: square.side * ratio);
-  Rectangle scale(Rectangle rect, Float ratio) = rectangle(width: rect.width * ratio, height: rect.heigh * ratio);
-  Circle scale(Circle circle, <Float, Int> ratio) = circle(radius: circle.radius * ratio);
+  Square scale(Square square, Float ratio) =
+    square(side: square.side * ratio);
+
+  Rectangle scale(Rectangle rect, Float ratio) =
+    rectangle(width: rect.width * ratio, height: rect.heigh * ratio);
+
+  Circle scale(Circle circle, <Float, Int> ratio) =
+    circle(radius: circle.radius * ratio);
 
 The third function definition is a bit anomalous, in that its second argument can be either an integer or a floating point number, while the first two only accept a {{Float}}. So only the first two signatures can be merged, and a function like this is going to be rejected by typechecker:
 
@@ -84,11 +89,11 @@ The third function definition is a bit anomalous, in that its second argument ca
 
 In this particular case, the problem can be fixed by splitting the third instance of {{scale(..)}} in two, if don't mind duplicating the code:
 
-  Square    scale(Square square,  Float ratio)  = square(side: square.side * ratio);
-  Rectangle scale(Rectangle rect, Float ratio)  = rectangle(width: rect.width * ratio, height: rect.heigh * ratio);
-  Circle    scale(Circle circle,  Float ratio)  = circle(radius: circle.radius * ratio);
+  Circle scale(Circle circle,  Float ratio) =
+    circle(radius: circle.radius * ratio);
 
-  Circle    scale(Circle circle,  Int ratio)    = circle(radius: circle.radius * ratio);
+  Circle scale(Circle circle,  Int ratio) =
+    circle(radius: circle.radius * ratio);
 
 All these limitations are just temporary. The current algorithm will eventually be integrated by a slower but more capable one that will handle the most complex cases. This is a low priority improvement though, since even the current algorithm seems to work pretty well in practice.
 
@@ -184,7 +189,7 @@ where {{search_nested(..)}} is defined as follow:
     [,,]    = union([search(v) : a0, a1, a2 <- value, v <- [a0, a1, a2]]),
     t?(v?)  = search(v);
 
-{{search_nested(..)}} is another example of a universal function, one that operates on values of any type and uses pattern matching to inspect and disassemble them. Inside the "then" branch of {{int_seqs(..)}} the compiler knows that {{value}} is of type {{Int*}}, that's why the function typechecks, while inside the "else" branch the typechecker uses the previous known type for {{value}}, in this case {{Any}}. In some cases, it would actually be useful if the compiler narrowed down the type of the variables in the "else" branch as well. The following function, for example, currently does not typecheck:
+Incidentally, {{search_nested(..)}} is another example of a universal function, one that operates on values of any type and uses pattern matching to inspect and disassemble them. Inside the "then" branch of {{int_seqs(..)}} the compiler knows that {{value}} is of type {{Int*}}, that's why the function typechecks, while inside the "else" branch the typechecker uses the previous known type for {{value}}, in this case {{Any}}. In some cases, it would actually be useful if the compiler narrowed down the type of the variables in the "else" branch as well. The following function, for example, currently does not typecheck:
 
   Nat abs(Int x) = if x :: Nat then x else -x; // DOES NOT TYPECHECK!!
 
@@ -312,8 +317,7 @@ As we've already seen, records in Cell are just maps whose keys happen to be sym
     humidity:     Nat
   );
 
-  WeatherMsrt1 wm_1_id(WeatherMsrt1 m) =
-    [l -> v : l, v <- m];
+  WeatherMsrt1 wm_1_id(WeatherMsrt1 m) = [l -> v : l, v <- m];
 
 It's obvious that if {{m}} is a map then an expression like {{[l -> v : l, v <- m]}} just makes an identical copy of it, so it's not entirely surprising that {{wm_1_id(..)}} typechecks. Let's now say we need to remove one of the fields of the record, in this case {{humidity}}:
 
@@ -336,7 +340,8 @@ or to change the type of one of the fields, {{station_id}}, by replacing the ori
     station_id:   Nat,
     temperature:  Int,
     pressure:     Float,
-    humidity:     Nat);
+    humidity:     Nat
+  );
 
   WeatherMsrt3 wm_1_to_3(WeatherMsrt1 m, [String -> Nat] conv_table) = [
     l -> if l == :station_id then conv_table(v, !!) else v : l, v <- m
@@ -406,26 +411,25 @@ In the first branch of the match expression the type associated to the new varia
 
   type Entity = entity(id: AnyId, alt_id: AnyId);
 
-  type Type1Entity = entity(id: Id,     alt_id: Id);
-  type Type2Entity = entity(id: Id,     alt_id: SurrId);
-  type Type3Entity = entity(id: SurrId, alt_id: Id);
-  type Type4Entity = entity(id: SurrId, alt_id: SurrId);
-
+  type Entity1 = entity(id: Id,     alt_id: Id);
+  type Entity2 = entity(id: Id,     alt_id: SurrId);
+  type Entity3 = entity(id: SurrId, alt_id: Id);
+  type Entity4 = entity(id: SurrId, alt_id: SurrId);
 
   String id_repr(Id id)               = _print_(_untag_(id));
   String surr_id_repr(SurrId surr_id) = _print_(_untag_(surr_id));
 
-  String type_1_entity_repr(Type1Entity e) = id_repr(e.id) & "/" & id_repr(e.alt_id);
-  String type_2_entity_repr(Type2Entity e) = id_repr(e.id);
-  String type_3_entity_repr(Type3Entity e) = id_repr(e.alt_id);
-  String type_4_entity_repr(Type4Entity e) = surr_id_repr(e.id) & "/" & surr_id_repr(e.alt_id);
+  String entity1_repr(Entity1 e) = id_repr(e.id) & "/" & id_repr(e.alt_id);
+  String entity2_repr(Entity2 e) = id_repr(e.id);
+  String entity3_repr(Entity3 e) = id_repr(e.alt_id);
+  String entity4_repr(Entity4 e) = surr_id_repr(e.id) & "/" & surr_id_repr(e.alt_id);
 
   String entity_repr(Entity e) =
     match (e.id, e.alt_id)
-      id(),       id()        = type_1_entity_repr(e),
-      id(),       surr_id()   = type_2_entity_repr(e),
-      surr_id(),  id()        = type_3_entity_repr(e),
-      surr_id(),  surr_id()   = type_4_entity_repr(e);
+      id(),       id()        = entity1_repr(e),
+      id(),       surr_id()   = entity2_repr(e),
+      surr_id(),  id()        = entity3_repr(e),
+      surr_id(),  surr_id()   = entity4_repr(e);
 
 In the body of {{entity_repr(..)}} the type of the fields of {{e}} is narrowed down, for each branch of the match statement, to the set of values whose fields can match the branch patterns, and after that {{e}} is passed as argument to one of four functions each of which only accepts a subset of the values that comprise the type {{Entity}}.
 
@@ -448,7 +452,7 @@ In the above code, both patterns have been mispelled. {{noting}} and {{justs(x?)
   T value_unsafe(Maybe[T]) =
     just(x?)  = x;
 
-This is the recommended way to write it, by explicitly handling all possible cases:
+This is the recommended way to write it, by explicitly handling all possibilities:
 
   T value_unsafe(Maybe[T]) =
     just(x?)  = x,
