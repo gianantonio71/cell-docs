@@ -262,6 +262,8 @@ If you were to concatenate those shorter sequences to the left, on the other han
 
 The language also includes a second pseudo-imperative operation, the sequence update, but it hasn't been fully implemented yet. Here's an example:
 
+  // reverse_permutation((1, 2, 4, 0, 3)) == (3, 0, 1, 4, 2)
+  // reverse_permutation((3, 0, 1, 4, 2)) == (1, 2, 4, 0, 3)
   Nat* reverse_permutation(Nat* p) {
     rp = (0 : i < |p|);
     for x @ i <- p:
@@ -269,9 +271,6 @@ The language also includes a second pseudo-imperative operation, the sequence up
     ;
     return rp;
   }
-
-  // reverse_permutation((1, 2, 4, 0, 3)) == (3, 0, 1, 4, 2)
-  // reverse_permutation((3, 0, 1, 4, 2)) == (1, 2, 4, 0, 3)
 
 A statement of the form {{xs(i) := x;}} is a functional sequence update: conceptually, it is completely equivalent to the following code (provided of course that there's no existing variable named {{xj}} or {{j}} in the current scope):
 

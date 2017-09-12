@@ -159,18 +159,19 @@ Record types
 
 Just like tuples have their own type, even though at the value level they are just sequences, so records have types that are distinct from standard relation and map types, even though record values are just a subset of binary relation values. Their syntax should be self-explanatory:
 
-  type Point3D  = (x: Int, y: Int, z: Int);
-  type Rect     = (left: Float, right: Float, top: Float, bottom: Float);
-  type DateRec  = (day: <1..31>, month: <1..12>, year: Int);
+  type Point3D = (x: Int, y: Int, z: Int);
+  type Rect    = (left: Float, right: Float, top: Float, bottom: Float);
+  type DateRec = (day: <1..31>, month: <1..12>, year: Int);
 
 You can also tag some fields as being optional, by adding a question mark after their type. In the following type definition, for example, both {{middle_name}} and {{date_of_death}} are optional:
 
-  type PersonRecord = ( first_name:     String,
-                        middle_name:    String?,
-                        last_name:      String,
-                        date_of_birth:  Date,
-                        date_of_death:  Date?
-                      );
+  type PersonRecord = (
+    first_name:     String,
+    middle_name:    String?,
+    last_name:      String,
+    date_of_birth:  Date,
+    date_of_death:  Date?
+  );
 
 
 Tagged value types
@@ -180,15 +181,29 @@ Finally we have tagged value types. Here are a few example:
   type Distance   = meters(Float);
   type TimeSpan   = seconds(Float);
   type String     = string(Nat*);
-  type Point      = cartesian_point((x: Float, y: Float)), polar_point((ro: Float, theta: Float));
-  type Rectangle  = rectangle((bottom_left: Point, width: Float, height: Float));
   type Date       = date((<1..31>, <1..12>, Int));
+
+  type Point      = cartesian_point((x: Float, y: Float)),
+                    polar_point((ro: Float, theta: Float));
+
+  type Rectangle  = rectangle((
+                      bottom_left: Point,
+                      width: Float,
+                      height: Float
+                    ));
 
 The same syntactic sugar provided for tagged records and tuples is available here as well. The following type definitions are completely equivalent to the ones above:
 
-  type Point      = cartesian_point(x: Float, y: Float), polar_point(ro: Float, theta: Float);
-  type Rectangle  = rectangle(bottom_left: Point, width: Float, height: Float);
   type Date       = date(<1..31>, <1..12>, Int);
+
+  type Point      = cartesian_point(x: Float, y: Float),
+                    polar_point(ro: Float, theta: Float);
+
+  type Rectangle  = rectangle(
+                      bottom_left: Point,
+                      width:       Float,
+                      height:      Float
+                    );
 
 There's also a type for values that are tagged with any symbol:
 
@@ -276,12 +291,16 @@ A parametric type can of course have any number of type variables, not just one:
 
 Subtyping
 
-Let's now come back to the subject of subtyping. As mentioned before, a type T1 is a subset/subtype of another type T2 if every value in T1 is also in T2, and the two are equivalent if they are both subtypes of each other, that is, if every element of T1 is in T2 and vice versa.
+Let's now come back to the subject of subtyping. As mentioned before, a type {{T}} is a subset/subtype of another type {{T'}} if every element of {{T}} is also an element of {{T'}}, and the two are equivalent if they are both subtypes of each other, that is, if every element of {{T}} belongs to {{T'}} and vice versa.
 The problem with using the standard mathematical notion of subset and superset to define subtyping conformance is that such notion is, in the general case, undecidable: there's no algorithm, let alone an efficient one, that can decide, for all pairs of types/sets if one is a subset of the other. When the typechecker fails to prove a valid subtype relationship it simply rejects what might otherwise be a valid program, but it never accepts an invalid one, so the system is safe, just more restrictive that it should, in theory, be.
 Luckily, it turns out that, in practice, the types that are used in normal code are simple enough that even a not particularly sofisticated typechecker has no difficulty dealing with the vast majority of cases, and it can run into trouble only in situations that are far outside the reach of any nominal, deterministic type system I know of.
 As an example of what could trip up the compiler, consider the following type definitions:
 
-  type ProbType1 = (Ta1, Tb1), (Ta1, Tb2), (Ta2, Tb1), (Ta2, Tb2);
+  type ProbType1 = (Ta1, Tb1),
+                   (Ta1, Tb2),
+                   (Ta2, Tb1),
+                   (Ta2, Tb2);
+
   type ProbType2 = (<Ta1, Ta2>, <Tb1, Tb2>);
 
 where {{Ta1}}, {{Ta2}}, {{Tb1}} and {{Tb2}} are types defined elsewhere. {{ProbType1}} and {{ProbType2}} are obviously the same type, but the typechecker is unable to figure that out. It can easily prove that {{ProbType1}} is a subset of {{ProbType2}}, but not the other way round. The same problem can present itself with record types:
@@ -347,13 +366,17 @@ The following is the "universal" type, the one that includes all values. It is a
 
 The next types are useful when writing functions that can fail to produce a result. The {{Maybe}} type is standard in any functional programming language:
 
+  type Maybe[T]   = nothing, just(T);
+
   type Nothing    = nothing;
   type Just[T]    = just(T);
-  type Maybe[T]   = nothing, just(T);
 
 and the {{Result}} type is a slightly more capable version of it, that can return either a result or an error:
 
   type Result[V, E] = success(V), failure(E);
+
+  type Success[V]   = success(V);
+  type Failure[E]   = failure(E);
 
 An alternative to {{Maybe}} is the {{Opt}} type. It represents the absence of value with an empty sequence, and its presence with a 1-element tuple. It may be preferrable (in some cases, at least) because standard sequence manipulation constructs and functions can be applied to it as well. Here's the definition:
 

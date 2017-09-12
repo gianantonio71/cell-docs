@@ -20,13 +20,13 @@ Functions with no arguments in a referentially transparent language are of cours
 
 Boolean expressions can be built using the standard logical connectors {{and}}, {{or}} and {{not}}:
 
-  Bool is_ascii_print(Int char) = char >= 32 and char <= 126;
-  Bool is_ascii_upper(Int char) = char >= 65 and char <= 90;
-  Bool is_ascii_lower(Int char) = char >= 97 and char <= 122;
-  Bool is_ascii_digit(Int char) = char >= 48 and char <= 57;
-  Bool is_ascii_alpha(Int char) = is_ascii_upper(char) or is_ascii_lower(char);
-  Bool is_ascii_punct(Int char) = char != 32 and is_ascii_print(char) and
-                                  not (is_ascii_alpha(char) or is_ascii_digit(char));
+  Bool is_print(Int char) = char >= 32 and char <= 126;
+  Bool is_upper(Int char) = char >= 65 and char <= 90;
+  Bool is_lower(Int char) = char >= 97 and char <= 122;
+  Bool is_digit(Int char) = char >= 48 and char <= 57;
+  Bool is_alpha(Int char) = is_upper(char) or is_lower(char);
+  Bool is_punct(Int char) = char != 32 and is_print(char) and
+                            not (is_alpha(char) or is_digit(char));
 
 If an expression is not defined for some combination of values for its variables, you can use the {{undefined}} keyword:
 
@@ -84,13 +84,23 @@ The following expressions all evaluate to true:
 
 The conditional inclusion notation applies to all collection types, in all of their syntactic forms: sequences, sets, relations, maps and records. A few examples:
 
-  [Int] nearby_set(Nat n)  = [n - 1 if n > 0, n, n+1];
+  [Int] nearby_set(Nat n) = [n - 1 if n > 0, n, n+1];
 
-  (left: Int?, middle: Int, right: Int) nearby_record(Nat n) = (left: n - 1 if n > 0, middle: n, right: n + 1);
+  [Int -> Int] map_nearby(Nat n) = [
+    -1 -> n - 1 if n > 0,
+     0 -> n,
+     1 -> n + 1
+  ];
 
-  [Int -> Int] nearby_map(Nat n)  = [-1 -> n - 1 if n > 0, 0 -> n, 1 -> n + 1];
+  [Int, Int] bin_rel_nearby(Nat n)  = [
+    -1, n - 1 if n > 0;
+     0, n;
+     1, n + 1
+  ];
 
-  [Int, Int] nearby_bin_rel(Nat n)  = [-1, n - 1 if n > 0; 0, n; 1, n + 1];
+  type Point = point(x: Int, y: Int, z: Int?);
+
+  Point point(Int x, Int y, Int z) = point(x: x, y: y, z: z if z != 0);
 
 
 Native collection values operations
@@ -103,35 +113,51 @@ If used on a sequence, the above expression will return its length; on a set, th
 
 Sequences support also access by index:
 
-  a_seq(i)    // Access by index
+  a_seq(i) // Access by index
 
 With sets, we have membership test:
 
-  a_set(elt)  // True if "elt" is an element of "a_set", false otherwise
+  // True if "elt" is an element of "a_set", false otherwise
+  a_set(elt)
 
 Binary relations also support partial membership tests:
 
-  a_bin_rel(arg0, arg1)   // Checks whether "a_bin_rel" contains the entry "arg0, arg1"
-  a_bin_rel(arg0, *)      // True if there exists an entry whose first element if arg0, false otherwise
-  a_bin_rel(*, arg1)      // True if "a_bin_rel" contains an entry whose second element is "arg1", false otherwise
+  // Checks whether "a_bin_rel" contains the entry "arg0, arg1"
+  a_bin_rel(arg0, arg1)
+
+  // True if there exists an entry whose first
+  // element if arg0, false otherwise
+  a_bin_rel(arg0, *)
+
+  // True if "a_bin_rel" contains an entry whose
+  // second element is "arg1", false otherwise
+  a_bin_rel(*, arg1)
 
 and lookups (but note that this syntax is temporary, it will change in a future version of the language):
 
-  a_bin_rel(arg0, !!)   // If "a_bin_rel" contains one and only one entry whose left element is equal to arg0,
-                        // returns the corresponding right element. Fails otherwise.
-  a_bin_rel(!!, arg1)   // If "a_bin_rel" contains one and only one entry whose right element is equal to arg1,
-                        // returns the corresponding left element. Fails otherwise
+  // If "a_bin_rel" contains one and only one entry
+  // whose left element is equal to arg0, returns the
+  // corresponding right element. Fails otherwise.
+  a_bin_rel(arg0, !!)
+
+  // If "a_bin_rel" contains one and only one entry
+  // whose right element is equal to arg1, returns
+  // the corresponding left element. Fails otherwise
+  a_bin_rel(!!, arg1)
 
 A future version of the compiler will provide a more compact notation for the first of the above two operations:
 
-  a_map_or_bin_rel(key)   // Same as a_map_or_bin_rel(key, !!)
+  a_map_or_bin_rel(key) // Same as a_map_or_bin_rel(key, !!)
 
 and this notation is already available for mutable relation variables defined inside static automata (we'll discuss them in the following chapters).
 
 Records support all binary relation and map operations, plus access by field and field membership test:
 
-  a_record.a_field    // Returns the value of "a_field"
-  a_record.a_field?   // Return true if "a_record" has field "a_field", false otherwise
+  // Returns the value of "a_field"
+  a_record.a_field
+
+  // Return true if "a_record" has field "a_field", false otherwise
+  a_record.a_field?
 
 The dot notation can also be used with tagged records. The following code is valid, since values of type {{Point}} are actually tagged records:
 
@@ -142,65 +168,80 @@ The dot notation can also be used with tagged records. The following code is val
 
 It can also be used with union types, as long as all types are records or tagged records and they all have the particular field that whose value is being looked up:
 
-  type MyUnionType = (field1: Int, field2: String), tagged_rec(field1: Float, field3: Int);
+  type MyUnionType = (field1: Int, field2: String),
+                     tagged_rec(field1: Float, field3: Int);
 
   <Int, Float> get_field1(MyUnionType value) = value.field1;
 
 Ternary relations support the same native operations as binary relations, but with three arguments instead of two in the case of membership tests and lookups:
 
-  a_tern_rel(arg0, arg1, arg2)  // True if "a_tern_rel" includes the triple "arg0, arg1, arg2", false otherwise
-  a_tern_rel(arg0, *, arg2)     // Partial membership test, any value for the middle argument will do
-  a_tern_rel(*, arg1, *)        // Partial membership test, any pair of values for left and right arguments will do
+  // True if "a_tern_rel" includes the triple
+  // "arg0, arg1, arg2", false otherwise
+  a_tern_rel(arg0, arg1, arg2)
 
-  a_tern_rel(!!, arg1, arg2)    // Look up the corresponding values in the first, second or third
-  a_tern_rel(arg0, !!, arg2)    // columns respectively, if those values exist and are unique.
-  a_tern_rel(arg0, arg1, !!)    // Fail otherwise
+  // Partial membership test, any value for
+  // the middle argument will do
+  a_tern_rel(arg0, *, arg2)
+
+  // Partial membership test, any pair of values
+  // for left and right arguments will do
+  a_tern_rel(*, arg1, *)
+
+  // Look up the corresponding values in the first, second
+  // or third columns respectively, if those values exist
+  // and are unique. Fail otherwise
+  a_tern_rel(!!, arg1, arg2)
+  a_tern_rel(arg0, !!, arg2)
+  a_tern_rel(arg0, arg1, !!)
 
 
 Sequence comprehension
 
 Say you want to apply a certain operation to all elements of a sequence:
 
-  Int* square_all(Int* xs) = (x * x : x <- xs);
-
   // square_all(())              == ()
   // square_all((0, 1, 2, 3, 4)) == (0, 1, 4, 9, 16)
+  Int* square_all(Int* xs) = (x * x : x <- xs);
 
 You can access not just the value of each element of the sequence, but also their indexes:
 
-  Int* elem_plus_index(Int* xs) = (x + i : x @ i <- xs);
-
   // elem_plus_index((10, 20, 30, 40)) == (10, 21, 32, 43);
+  Int* elem_plus_index(Int* xs) = (x + i : x @ i <- xs);
 
 You can add a filter expression:
 
-  Int* only_nonzero_elements(Int* xs) = (x : x <- xs, x != 0);
-
   // only_nonzero_elements((2, 1, 0, 4, 0, 3)) == (2, 1, 4, 3)
+  Int* only_nonzero_elements(Int* xs) = (x : x <- xs, x != 0);
 
 If the sequence contains tuples, you can destructure them:
 
-  Int* sum_triples((Int, Int, Int) ts) = (x + y + z : x, y, z <- ts);
-
   // sum_triples(((1, 2, 3), (4, 5, 6), (7, 8, 9))) == (6, 15, 24)
+  Int* sum_triples((Int, Int, Int) ts) = (x + y + z : x, y, z <- ts);
 
 And you can of course combine all the above features:
 
-  Int* weird_function((Int, Int) ts) = (2 * max(x, y) : x, y @ i <- ts, x > i and y > i);
-
-  // weird_function(((2, 4), (5, 2), (3, 1), (7, 4), (2, 6)) == (8, 10, 14)
+  // weird_function(((2, 4), (5, 2), (3, 1), (7, 4), (2, 6))
+  //   ==
+  // (8, 10, 14)
+  Int* weird_function((Int, Int) ts) = (
+    2 * max(x, y) : x, y @ i <- ts, x > i and y > i
+  );
 
 You can also build a sequence by iterating over a range of integers instead:
 
-  Int* rotate_left(Int* seq, Int shift) = (seq(mod(i+shift, |seq|)) : i < |seq|);
-
-  // rotate_left((100, 101, 102, 103, 104), 2) == (102, 103, 104, 100, 101)
+  // rotate_left((100, 101, 102, 103, 104), 2)
+  //   ==
+  // (102, 103, 104, 100, 101)
+  Int* rotate_left(Int* seq, Int shift) = (
+    seq(mod(i+shift, |seq|)) : i < |seq|
+  );
 
 The index variable {{i}} goes from 0 to {{|seq|-1}}. You can include the last value by using {{<=}} instead of {{<}}:
 
-  Int* insert_right(Int* seq, Int elt) = (if i == |seq| then elt else seq(i) : i <= |seq|);
-
   // insert_right((100, 101, 102), 103) == (100, 101, 102, 103)
+  Int* insert_right(Int* seq, Int elt) = (
+    if i == |seq| then elt else seq(i) : i <= |seq|
+  );
 
 Note that the above example (and many of those that follow) is just that, an example, and not the recommended way to write that function. The following implementation is logically equivalent, but a lot more efficient (when used properly, it runs in amortized O(1)):
 
@@ -217,13 +258,19 @@ Comprehension can be applied to sets and relations as well. It's similar but a b
 
 The source expression {{x <- set1 | x <- set2}} iterates through all the elements of both {{set1}} and {{set2}}. The iteraction is done in an unspecified order (since sets and relations are unordered collections), and all duplicates in the result are of course eliminated. Any single-letter uppercase symbol like the {{T}} that appears in the signature of {{set_union()}} is a type variables that can represent any type. Type variables are used for generic programming, and they are needed to preserve type information: if the above function is used, for instance, to merge two sets of integers, the typechecker will be able to figure out that the result, too, will be a set of integers. We'll discuss them in detail in another chapter. Merging relations is very similar:
 
-  [A, B] bin_rel_union([A, B] r1, [A, B] r2) = [x, y : x, y <- r1 | x, y <- r2];
+  [A, B] bin_rel_union([A, B] r1, [A, B] r2) = [
+    x, y : x, y <- r1 | x, y <- r2
+  ];
 
-  [A, B, C] tern_rel_union([A, B, C] r1, [A, B, C] r2) = [x, y, z : x, y, z <- r1 | x, y, z <- r2];
+  [A, B, C] tern_rel_union([A, B, C] r1, [A, B, C] r2) = [
+    x, y, z : x, y, z <- r1 | x, y, z <- r2
+  ];
 
 Maps have a specific form of comprehension, that works in exactly the same way as binary relation comprehension, but will refuse to produce values that are not maps: if the resulting relation has duplicate keys, the computation will just fail. The only syntactic difference is that the comma between the two expression before the {{:}} is replaced with a {{->}}. Here's how you define the map version of union:
 
-  [A -> B] map_union([A -> B] m1, [A -> B] m2) = [x -> y : x, y <- r1 | x, y <- r2];
+  [A -> B] map_union([A -> B] m1, [A -> B] m2) = [
+    x -> y : x, y <- r1 | x, y <- r2
+  ];
 
 You can also define a function that can merge any number of sets:
 
@@ -232,7 +279,9 @@ You can also define a function that can merge any number of sets:
 The above function iterates through all the sets in {{sets}}, and for each set, it iterates through all the elements. You can of course define similar functions for relations or maps.
 This is a function that generates a binary relation that is the cartesian product of two sets:
 
-  [A, B] cartesian_product([A] s1, [B] s2) = [x, y : x <- s1, y <- s2];
+  [A, B] cartesian_product([A] s1, [B] s2) = [
+    x, y : x <- s1, y <- s2
+  ];
 
 The function iterates through all the elements in the first set and, for each of them, it iterates through the elements of the second set, and it ends up producing all the combinations.
 
@@ -242,11 +291,15 @@ Set/relation comprehension expressions can iterate through sequences as well. Th
 
 When the source is a sequence, rather than a set or a relations, you need to use the {{<~}} arrow instead of {{<-}} and the same index variable and tuple destructuring functionalities that we saw for sequence comprehension are available. An example:
 
-  [Nat, A, B] pair_seq_to_indexed_tern_rel((A, B)* seq) = [i, x, y : x, y @ i <~ seq];
+  [Nat, A, B] pair_seq_to_indexed_tern_rel((A, B)* seq) = [
+    i, x, y : x, y @ i <~ seq
+  ];
 
 Just like with sequences we can have filter clauses, but here we can have more than one and they can be intermixed with generators. The following function produces the cartesian product of two sets of integers, but it filters out all negative integers from either set:
 
-  [Int, Int] cart_prod_non_neg([Int] xs, [Int] ys) = [x, y : x <- xs, x >= 0, y <- ys, y >=0];
+  [Int, Int] cart_prod_non_neg([Int] xs, [Int] ys) = [
+    x, y : x <- xs, x >= 0, y <- ys, y >=0
+  ];
 
 You can also calculate a new value and assign it to a variable inside the loop. The following expression iterates through all the elements of {{xs}}, stores the value of {{f(x)}} in {{y}}, skips the iteraction when {{p(y)}} is false, and finally inserts the value of {{g(x, y)}} in the output set.
 
@@ -254,18 +307,31 @@ You can also calculate a new value and assign it to a variable inside the loop. 
 
 There's one more type of clause that you can use in set/relation comprehension expression, but we'll defer its discussion until we've examined pattern matching.
 
-You can also iterate through a projection of a relation, that is, a subset of it obtained by filtering it based on the value of some of the arguments. The following pairs of expressions are all equivalent, but the ones on the left are a lot faster, because they don't need to do a linear scan of the entire relation:
+You can also iterate through a projection of a relation, that is, a subset of it obtained by filtering it based on the value of some of the arguments. The following pairs of expressions are all equivalent, but the ones that are not commented out are a lot faster, because they don't need to do a linear scan of the entire relation:
 
-  [y : y <- bin_rel(x0, ?)]                 [y : x, y <- bin_rel, x == x0]
-  [x : x <- bin_rel(?, y0)]                 [x : x, y <- bin_rel, y == y0]
+  // [y : x, y <- bin_rel, x == x0]
+  [y : y <- bin_rel(x0, ?)]
 
-  [y, z : y, z <- tern_rel(x0, ?, ?)]       [y, z : x, y, z <- tern_rel, x == x0]
-  [x, y : x, z <- tern_rel(?, y0, ?)]       [x, z : x, y, z <- tern_rel, y == y0]
-  [x, y : x, y <- tern_rel(?, ?, z0)]       [x, y : x, y, z <- tern_rel, z == z0]
+  // [x : x, y <- bin_rel, y == y0]
+  [x : x <- bin_rel(?, y0)]
 
-  [x : x <- tern_rel(?, y0, z0)]            [x : x, y, z <- tern_rel, y == y0, z == z0]
-  [y : y <- tern_rel(x0, ?, z0)]            [y : x, y, z <- tern_rel, x == x0, z == z0]
-  [z : z <- tern_rel(x0, y0, ?)]            [z : x, y, z <- tern_rel, x == x0, y == x0]
+  // [y, z : x, y, z <- tern_rel, x == x0]
+  [y, z : y, z <- tern_rel(x0, ?, ?)]
+
+  // [x, z : x, y, z <- tern_rel, y == y0]
+  [x, y : x, z <- tern_rel(?, y0, ?)]
+
+  // [x, y : x, y, z <- tern_rel, z == z0]
+  [x, y : x, y <- tern_rel(?, ?, z0)]
+
+  // [x : x, y, z <- tern_rel, y == y0, z == z0]
+  [x : x <- tern_rel(?, y0, z0)]
+
+  // [y : x, y, z <- tern_rel, x == x0, z == z0]
+  [y : y <- tern_rel(x0, ?, z0)]
+
+  // [z : x, y, z <- tern_rel, x == x0, y == x0]
+  [z : z <- tern_rel(x0, y0, ?)]
 
 
 Operators
@@ -288,7 +354,8 @@ All binary operators associate from left to right, except for those that don't a
 The arithmetic and comparison operators {{+}} {{-}} {{*}} {{/}} {{<}} {{>}} {{<=}} {{>=}} have the obvious meanings, and are defined for any combination of integers and floating point numbers. The binary {{-}} is also used to denote set difference. The exponentiation operator {{^}} is too defined for any combination of integers and floating point numbers, but it always returns a floating point number.
 The {{::}} operator is used to test if a value belongs to a type, and returns a boolean value:
 
-  my_var :: MyType  // True if the value of "my_var" belongs to "MyType", false otherwise
+  // True if the value of "my_var" belongs to "MyType", false otherwise
+  my_var :: MyType
 
 The operator {{&}} is defined as concatenation for sequences and strings, union for sets and merge for maps. In the case of maps it fails if the two maps have common keys (unless those duplicate keys map to the same values).
 
@@ -334,13 +401,19 @@ The second argument to the {{map(..)}} function is a closure that takes an argum
 where {{A}}, {{A1}}, {{A2}}, ... {{An}} are the types of the argument(s), and {{R}} is the type of the result. The only place where closure types can appear is in the argument list of a function. A function cannot return a closure, and type definitions cannot make use of closure types, since regular data and closures cannot be mixed. Also, a closure cannot take other closures in turn as parameters: all of its arguments have to be regular values.
 Here are a few examples of how you can call a function that takes a closure argument:
 
-  Int* increment_all(Int* xs)       = map(xs, $ + 1);   // Same as (x + 1 : x <- xs)
-  Int* multiply_all(Int* xs, Int y) = map(xs, $ * y);   // Same as (x * y : x <- xs)
-  Int* square_all(Int* xs)          = map(xs, square);  // Same as (square(x) : x <- xs)
+  // Int* increment_all(Int* xs) = (x + 1 : x <- xs);
+  Int* increment_all(Int* xs) = map(xs, $ + 1);
 
-  Int square(Int x) = x * x;  // Auxiliary function used in the square_all(..) example
+  // Int* multiply_all(Int* xs, Int y) = (x * y : x <- xs);
+  Int* multiply_all(Int* xs, Int y) = map(xs, $ * y);
 
-  [B*] map2([A*] ss, (A -> B) f) = [map(s, f) : s <- ss];  // Same as [(f(x) : x <- s) : s <- ss]
+  // Int* square_all(Int* xs) = (square(x) : x <- xs);
+  Int* square_all(Int* xs) = map(xs, square);
+
+  Int square(Int x) = x * x;
+
+  // [B*] map2([A*] ss, (A -> B) f) = [(f(x) : x <- s) : s <- ss];
+  [B*] map2([A*] ss, (A -> B) f) = [map(s, f) : s <- ss];
 
 The are two ways to provide a closure argument in a function call. The first option, if you don't need to capture any local variable, is to just pass the name of an existing function or closure. That's what {{square_all(..)}} and {{map2(..)}} do. The other option is to simply write the expression that constitutes the body of the closure, like in {{increment_all(..)}} and {{multiply_all(..)}}. Inside that expression you can use local variables (which will be captured by the closure) and you can refer to the argument of the closure with the symbol {{$}}, or {{$a}}, {{$b}}, {{$c}}... if the closure has more than one argument.
 
@@ -394,7 +467,9 @@ and tagged values with any tag. The following two functions accept as input any 
 
 Union types often include related but different sets of values, each of which is tagged with a different symbol, and in this case pattern matching may be used not to break up a value, but simply to provide a different implementation for each type in the union:
 
-  type Shape = square(side: Float), rectangle(width: Float, height: Float), circle(radius: Float);
+  type Shape = square(side: Float),
+               rectangle(width: Float, height: Float),
+               circle(radius: Float);
 
   Float pi = 3.141592653589793;
 
@@ -416,24 +491,33 @@ Patterns can also be nested. A few examples:
   type Rect  = rect(Point, Point);
 
   Int area(Rect) =
-    rect(point(x1?, y1?), point(x2?, y2?))  = abs((x1 - x2) * (y1 - y2));
+    rect(
+      point(x1?, y1?),
+      point(x2?, y2?)
+    ) = abs((x1 - x2) * (y1 - y2));
 
 ## ADD MORE EXAMPLES
 
 You can also break up a value according to a pattern, and still bind the entire value to a variable, like the following function does: it binds both elements of {{ps}} to a variable, {{p1}} and {{p2}} respectively, and then further breaks up each of them in turn, finally binding the values {{x1}}, {{y1}}, {{x2}}, {{y2}}.
 
-  ((Int, Int), (Int, Int)) sort_two_int_pairs(((Int, Int), (Int, Int)) ps) =
-    ((x1?, y1?) p1?, (x2?, y2?) p2?)  = ( if x1 > y1 then (y1, x1) else p1,
-                                          if x2 > y2 then (y2, x2) else p2
-                                        );
+  ((Int, Int), (Int, Int))
+  sort_two_int_pairs(((Int, Int), (Int, Int)) ps) =
+    ((x1?, y1?) p1?, (x2?, y2?) p2?) = (
+      if x1 > y1 then (y1, x1) else p1,
+      if x2 > y2 then (y2, x2) else p2
+    );
 
 Patterns can be used not only with the match expression, but also inside set/relation comprehension (but not sequence comprehension) expressions, like in this example:
 
-  [(Int, Int)] sort_pairs([(Int, Int)] ps) = [if x < y then p else (y, x) : p <- ps, (x?, y?) ?= p];
+  [(Int, Int)] sort_pairs([(Int, Int)] ps) = [
+    if x < y then p else (y, x) : p <- ps, (x?, y?) ?= p
+  ];
 
 The above function iterates through all pairs in the set, and for each of them it pattern matches it in order to bind the two variables {{x}} and {{y}}, and finally produces a result using those variables. If the match fails, then that particular iteraction of the loop is cut short. The following {{radii(..)}} function, for example, takes a set of {{Shape}} values, and for each circle among them it returns its radius, skipping squares and rectangles in the process:
 
-  [Float] radii([Shape] shapes) = [s.radius : s <- shapes, circle() ?= s];
+  [Float] radii([Shape] shapes) = [
+    s.radius : s <- shapes, circle() ?= s
+  ];
 
 There's also pattern unions, formed by joining any number of patterns with the {{|}} symbol.
 
@@ -477,12 +561,20 @@ Builtin functions
 In the above example, {{_str_}} and {{_bits_}} are builtin functions. The first one takes a symbol and returns a string that represents that symbol (for instance, {{_str_(:january)}} evaluates to {{"january"}}), and {{_bits_}} takes a (64-bit) floating point number and returns the same bit patterns reinterpreted as a 64-bit integer.
 Builtin functions always have names that start and end with an underscore, and they provide functionalities that are either impossible to implement directly in Cell, or that cannot implemented efficiently, or that are just convenient to have as builtins for whatever reason. Some of them have aliases in the standard library. The {{&}} operator for sequences, for example, is defined in terms of {{_cat_}} builtin function (doing so will enable an O(1) implementation of sequence concatenation that uses ropes instead of arrays as the underlying physical data structure). Among those that don't have aliases, the following ones can pretty useful:
 
-  _symb_()    // Returns a symbol given its textual representation: _symb_("any_symbol") == :any_symbol
-  _isort_()   // Sorts the elements of a set in some implementation-defined order
-  _tag_()     // Given a tagged value, returns the tag
-  _print_()   // Returns a string containing the textual representation of any value
-  _parse_()   // Given the textual representation of a value returns a Result[Any, Nat]
-              // with either the value or the position of the error if parsing fails
+  // Sorts the elements of a set in some
+  // implementation-defined order
+  A* _isort_([A])
+
+  // Given a tagged value, returns the tag
+  Symbol _tag_(<+>(Any))
+
+  // Returns a string containing the textual
+  // representation of any value
+  String _print_(Any)
+
+  // Given the textual representation of a value returns either the
+  // parsed value or the position of the error if parsing fails
+  Result[Any, Nat] _parse_(String)
 
 
 Polymorphic functions
@@ -542,8 +634,11 @@ These stricter-than-necessary restrictions on the signatures of polymorphic func
 
 When writing polymorphic functions that operate over collection types, remember that in Cell, the same {{[]}} value is used to represent empty relations of any arity, and that includes the empty set, since sets are just relations of arity one. A consequence of that is that the compiler has no choice but to reject code like the this, because the types of both arguments overlap:
 
-  [T]       (_&_)([T] s1, [T] s2)           = [x : x <- s1 | x <- s2];
-  [A -> B]  (_&_)([A -> B] m1, [A -> B] m2) = [k -> v : k, v <- m1 | k, v <- m2];
+  [T] (_&_)([T] s1, [T] s2) = [x : x <- s1 | x <- s2];
+
+  [A -> B]  (_&_)([A -> B] m1, [A -> B] m2) = [
+    k -> v : k, v <- m1 | k, v <- m2
+  ];
 
 The {{&}} operator is defined as union between sets, and merge between maps. But in an expression like {{[] & []}} which of the two functions should be used, given that {{[]}} is both the empty set and the empty binary relation? In order to avoid ambiguities, the definition of the operator {{&}} has to be split further. Here's how it is defined in the standard library:
 
@@ -557,7 +652,9 @@ The {{&}} operator is defined as union between sets, and merge between maps. But
   [+A -> B] (_&_)([], [+A -> B] map) = map;
   [+A -> B] (_&_)([+A -> B] map, []) = map;
 
-  [+A -> B] (_&_)([+A -> B] map1, [+A -> B] map2) = [k -> v : k, v <- map1 | k, v <- map2];
+  [+A -> B] (_&_)([+A -> B] map1, [+A -> B] map2) = [
+    k -> v : k, v <- map1 | k, v <- map2
+  ];
 
 All the possible combinations of empty set/map, non-empty set and non-empty map have to be dealt with individually, in order to get rid of any overlap among the types of the arguments.
 
