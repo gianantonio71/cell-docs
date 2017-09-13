@@ -22,20 +22,22 @@ Procedures cannot make use of type variables in their signature, cannot take clo
 
 The only way to do any I/O is to use the procedures defined in the standard library. There's currently four of them, listed here with their signatures:
 
-  // Reads the content of a given file, and returns it wrapped in a Maybe type
-  // Returns ":nothing" if the file cannot be read, for whatever reason
+  // Reads the content of a given file, and returns it
+  // wrapped in a Maybe type. Returns ":nothing" if the
+  // file cannot be read, for whatever reason
   Maybe[Byte*] FileRead(String filename)
 
-  // Write the given sequence of bytes to a file. If <append> is true, it appends
-  // the data to the end of the file. Otherwise, it overwrites the existing content
-  // Returns "true" on success, "false" on failure
+  // Write the given sequence of bytes to a file.
+  // If <append> is true, it appends the data to the end
+  // of the file. Otherwise, it overwrites the existing
+  // content. Returns "true" on success, "false" on failure
   Bool FileWrite(String filename, Bool append, Byte* data)
 
   // Prints the content of a given string to the standard output
   Print(String output)
 
-  // Reads the next character from the standard input, and returns it wrapped
-  // in a Maybe type. Returns ":nothing" on EOF
+  // Reads the next character from the standard input, and returns
+  // it wrapped in a Maybe type. Returns ":nothing" on EOF
   Maybe[Nat] GetChar()
 
 You may have noticed by now that procedures in Cell are seriously underpowered, and that the I/O facilities of the language are almost nonexistent. That's by design, and it's going to stay that way. Remember, Cell is designed to integrate with your primary programming language, not to write entire applications. Given that, it makes no sense whatsoever to try to reimplement in Cell the I/O capabilities of your programming language of choice. It's not just pointless, it would also be a huge drag on the development of the compiler. Procedures and some minimal I/O capabilities are there only because they are needed for testing, and when learning the language. They can of course also be used to write data-processing batch applications, like the Cell compiler itself, that read some input data from one or more files, process it and then write the results to another set of files, but nothing more than that.

@@ -52,7 +52,7 @@ Now the whole process is applied again to these new aggregated signatures, but u
 
   Bool covers(<Square, Rectangle, Circle>, <Square, Rectangle, Circle>)
 
-For functions that take more than two arguments, the process is repeated for each one of them. Once these aggregated signatures have been calculated, the compiler checks if any of them, individually, can accept two arguments of type {{Shape}}. If none can, the program is rejected. Note that during the whole process, and during typechecking in general, two types are considered equal if the compiler can prove they define the same (extensional) set of values, not if they have the same name. Whether a type is defined a {{Shape}}, {{<Square, Rectangle, Circle>}}, or even {{<square(side: <!>), rectangle(width: <!>, height: <!>), circle(radius: <!>)>}} is totally irrelevant, because the compiler can easily figure out that those definitions are equivalent.
+For functions that take more than two arguments, the process is repeated for each one of them. Once these aggregated signatures have been calculated, the compiler checks if any of them, individually, can accept two arguments of type {{Shape}}. If none can, the program is rejected. Note that during the whole process, and during typechecking in general, two types are considered equal if the compiler can prove they define the same (extensional) set of values, not if they have the same name. Whether a type is defined a {{Shape}}, {{<Square, Rectangle, Circle>}}, or even {{<Rectangle, circle(radius: <!>), square(side: <!>)>}} is totally irrelevant, because the compiler can easily figure out that those definitions are equivalent.
 
 This algorithm works well enough in practice that you usually don't even need to think about it, but bear in mind it can easily go awry if you do something unusual. If, for example, you were to add the following definitions, without making any changes to the previous code, the typechecker would end up rejecting your perfectly valid program:
 
@@ -482,7 +482,7 @@ and you forget to update {{has_vertexes(..)}}. See the problem? The catch-all br
     rectangle() = true,
     circle()    = false;
 
-the error could have been spotted at compile time by an inproved version of the typechecker, but even with the current one, the problem would have manifested itself with a run-time crash, with is a lot better than getting a wrong result, since in that case at least the presence of the error would not go unnoticed, and its cause would be clear.
+the error could have been spotted at compile time by an inproved version of the typechecker, but even with the current one, the problem would have manifested itself with a run-time crash, which is a lot better than getting a wrong result, since in that case at least the presence of the error would not go unnoticed, and its cause would be clear.
 The problem is made worse by the fact that there's no encapsulation in Cell, so functions that pattern match against a given union type could be practically anywhere in your codebase. Now, there are times when a default branch is fine and in practice actually necessary, but I recommend you try to stay away from them, and when you really need them always ask yourself what would happen if a new alternative were added to the union type. Default branches may be sort of OK for example when they are associated with the {{undefined}} expression: in that case the addition of a new type would cause a run-time crash which, as already mentioned, is generally not as bad as getting the wrong result.
 
 
