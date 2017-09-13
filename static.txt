@@ -1,0 +1,96 @@
+Static automata
+
+With the functional subset of the language now out of the way, we can finally dive into those constructs and features that are unique to Cell, and we'll start with static automata. We've already gone through, in the overview, the basic ideas that
+
+The first thing you need to provide in order to define a static automaton is the type of its state. An automaton instance is a sort of glorified variable, which has, at any given point in time, a value which we'll usually refer to as its state. The state of an automaton is always a record, and its type is defined with a schema definition. Here's an example, similar to something we've seen in a previous chapter:
+
+  schema Counter {
+    value:   Int = 0;
+    updates: Int = 0;
+  }
+
+The above schema definition looks a lot like a type definition, and indeed a schema can be used, with some limitations, as a normal type in function signatures. When {{Counter}} is used that way, it works exactly as if it had been defined like this:
+
+  type Counter = (value: Int, updates: Int);
+
+Schemas are essentially types, but they are augmented by extra bits of information that apply only to automata. One such piece of information is on display in the schema definition above: a default value for the initial state of the automaton. Whenever an instance of {{Counter}} is created its intial state will be {{(value: 0, updates: 0)}}, unless a different value is provided explicitly.
+
+While an instance of an automaton like {{Counter}} can be though of as a variable of a record type, whose value can be read just as if it were a normal variable, in some ways such an instance behaves more like a mutable data structure (like a {{struct}} in C or a class in an object-oriented language) with two member variables {{value}} and {{updates}} that can be modified directly inside a message handler. In the functional subset of the language we examined in the previous chapters there's a strict distinction between variables and values: variables can be updated, that is, the value they contain can change over time, but values themselves are immutable: if you have, say, a variable {{v}} that contains a record value with two fields {{x}} and {{y}} you cannot update those fields directly like you do in imperative languages: all you can do is create a mutated copy of the record in {{v}} and store that new record inside {{v}}. If the language allowed imperative updates of the form {{v.x = new_x;}} and another variable {{v'}} somewhere else in the program pointed to the same physical data structures as {{v}}, updating {{v}} would have the side effect of updating {{v'}} as well. That's what happens all the time in imperative languages of course, but preventing this kind of unrestriced side effects is quite possibly the most fundamental feature of functional programming. In the case of automata, though, the same end is achieved by different means: either by preventing (or restricting) aliasing in the first place (that's what happens with mutable relation variables, discussed below) or by making a physical copy of some of the data structures involved, which is what usually happens under the hood when you read the whole value of an automaton variable, as opposed to the value of one of its individual fields.
+
+As already mentioned in the overview, the most important feature of static automata, and of the entire language in general, is the ability to use (mutable) relation variables to encode their state. Here we need a slightly more complex example: let's say you want to build an old-fashioned chat server, that will allow users to connect from a remote computer using a command line tool like {{telnet}}. As soon as they connect they will be automatically assigned a numeric id by the server (which will be invisible to them) and they will be able to choose a (unique) username using a command of the form {{login somecutename}}. Once they're logged in they will be able to send and receive messages to and from other individual users, and will also be able to join any number of chat groups with the command {{join chatgroupname}}. Groups are managed dynamically: a group will be automatically created, if it doesn't exist already, as soon as a user tries to join it, and destroyed when the last member leaves. If you wanted to create an automaton that keeps track of usernames and the list of chat groups each user has joined, you could for instance start with something like this:
+
+  schema Logins1 {
+    usernames   : [Nat -> String] = [];
+    memberships : [Nat, String]   = [];
+  }
+
+The {{usernames}} field/variable is a map that associates each numeric user id with its corresponding username (which is a string, of course), and {{memberships}} is a binary relation that keeps track of which chat groups each user has joined, with users identified by their numeric id and groups by their name. Here's a sample value for the state of (an instance of) the {{Logins1}} automaton:
+
+  ( usernames: [
+      0 -> "tom",
+      1 -> "sara",
+      2 -> "betty",
+      3 -> "luke",
+      4 -> "clark"
+    ],
+    memberships: [
+      0, "football";
+      0, "politics";
+      2, "politics";
+      3, "football";
+      4, "football"
+    ]
+  )
+
+Alternatively, the normal relation variables {{usernames}} and {{memberships}} could be turned into mutable relation variables, as shown here:
+
+  schema Logins2 {
+    usernames(Nat, String) [key: 0];
+    memberships(Nat, String);
+  }
+
+What's the difference between {{Logins1}} and {{Logins2}}? With regards to the set of possible states they can assume, they're identical: every valid state for {{Logins1}} is also a valid state for {{Logins2}}, and vice versa. The difference lies in the operations you're allowed to perform on the relation variables {{usernames}} and {{memberships}}. With {{Logins1}} you can use them as ordinary variables, whose value can be read and passed around, and you can assign a new value to them inside a message handler, subject to a number of restriction we'll talk about later. But you cannot imperatively update the values they point to, as explained earlier. With {{Logins2}}, on the other hand, those relations can be efficiently updated in place, although of course only inside a message handler and with all the restrictions that apply. You can insert new tuples and update or delete existing ones, just like you would do with SQL in a relational database. The price to pay for such a priviledge is that mutable relation variables cannot be aliased. You cannot copy them, pass them to other functions, return them from methods, or use them to build larger composite values. The following expressions or statements, for example, are all rejected by the compiler in the case of {{Logins2}}, but are perfectly valid if applied to {{Logins1}}:
+
+  // Creating a composite value
+  (usernames, memberships)
+
+  // Passing a relation variable to a function
+  merge(usernames, other_usernames)
+
+  // Copying a relation variable
+  usernames_copy = usernames;
+
+  // Returning a relation variable from a method
+  return memberships;
+
+All you can do with mutable relation variables, apart from inserting, updating and deleting tuples, is lookups, searches and linear scans:
+
+  // Looking up a user's name given their numeric id
+  usernames(id)
+
+  // Looking up a user's numeric id give their name
+  usernames(!!, name)
+
+  // Returns true if there's a user whose numeric identifier
+  // is <id> and whose username is <name>, false otherwise
+  usernames(id, name)
+
+  // Retrieving all groups a given user has joined
+  [g : g <- memberships(id, ?)]
+
+  // Retrieving the ids of all users who have joined a given group
+  [id : id <- memberships(?, group_name)]
+
+  // Making a copy of the entire relation
+  [u, g : u, g <- memberships]
+
+The result of all these expressions is an ordinary value, which cannot be updated in place but can otherwise be manipulated without restrictions. In particular, if you need to copy the content of a mutable relation variable elsewhere you need to make a physical copy of it, as show in the last of the above expressions.
+
+The {{[key: 0]}} annotation to the declaration of {{usernames}} in {{Logins2}} simply declares that the first column is a key for the relation, that is, that no two tuples in {{usernames}} can have the same value for the left argument. This is the same as saying that the {{usernames}} relation is actually a map, just like it is in {{Login1}}. But in this case we can do better: not only numeric identifiers but also usernames should be unique. This can be enforced by declaring a second key for {{usernames}} as shown here:
+
+  schema Logins {
+    usernames(Nat, String) [key: 0, key: 1];
+    memberships(Nat, String);
+  }
+
+Now {{usernames}} is a bidirectional map: every numeric id is associated to a single username and vice versa. The ability to declare multiple keys is only available for mutable relation variables and not for ordinary types, at least for now. Ternary relations can also have composite keys: we'll see examples of that later.
