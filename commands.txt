@@ -1,0 +1,100 @@
+Creating and using automata
+
+We're now going to see how automata are created and used. While we will focus here on how to do that in Cell, as opposed to doing it from the host language in mixed-language applications, all the commands we're going to describe have close equivalents in the interface of the generated code.
+
+Automata of either type can only be created inside procedures and not functions. A procedure can declare any number of automaton variables, but it cannot create automata dinamically: all automaton variables are instantiated when a procedure is called, and automatically destroyed when it returns. Automaton instances are also only visible inside the procedure they're declared in and they cannot be passed to other procedures.
+
+
+Static automata
+
+In order to see how to manipulate static automata, we'll write a tiny command line tool that is actually useful in practice. Our application will create a static automaton, read an initial state for it from a file and a list of messages from another, send each message to the automaton instance in the given order, and save its final state in another file. We'll make use of the {{Counter}} automaton we saw in the previous chapters, but the code can be made to work with any automaton type with only trivial changes.
+
+  Int Main(String* args) {
+    instance : Counter;
+
+    // Checking the argument list
+    if |args| != 3:
+      Print("Invalid arguments");
+      return 1;
+    ;
+    init_state_fname, msg_list_fname, final_state_fname = args;
+
+    // Reading and checking the initial state
+    res = ReadValueFromFile(init_state_fname);
+    return if res == nothing;
+    init_state = value(res);
+    if not init_state :: Counter:
+      Print("Invalid initial state\n");
+      return 1;
+    ;
+
+    // Setting the initial state of the automaton
+    set ok = instance <- init_state;
+    if not ok:
+      Print("Invalid initial state\n");
+      return 1;
+    ;
+
+    // Reading and checking the message list
+    res = ReadValueFromFile(msg_list_fname);
+    return if res == nothing;
+    msg_list = value(res);
+    if not msg_list :: CounterMsg*:
+      Print("Invalid message list");
+      return;
+    ;
+
+    // Sending all messages in the list
+    for msg @ i <- msg_list:
+      ok = instance <- msg;
+      if not ok:
+        Print("Message number " & _print_(i) & " failed\n");
+      ;
+    ;
+
+    // Saving the final state
+    read final_state <- instance;
+    ok = FileWrite(final_state_fname, untag(_print_(final_state)));
+    if not ok:
+      Print("Could not write to file " & final_state_fname & "\n");
+      return 1;
+    ;
+
+    return 0;
+  }
+
+  Maybe[Any] ReadValueFromFile(String fname) {
+    res = FileRead(fname);
+    if res == nothing:
+      Print("Cannot read file " & fname & "\n");
+      return nothing;
+    ;
+
+    res = _parse_(value(res));
+    if failed(res):
+      Print("File " & fname & " does not contain a valid Cell value\n");
+      return nothing;
+    ;
+
+    return just(result(res));
+  }
+
+The first line in the body of {{Main(..)}} is the declaration of the automaton variable {{instance}}, which looks like an ordinary variable declaration. Automaton variables are instantiated and initialized as soon as the procedure that hosts them is called, and their initial state is the one that is provided with the schema declaration, which in the case of {{Counter}} is just {{(value: 0, updates: 0)}}.
+
+The first step is to load the initial state for {{counter}} from the given file, check that it's a valid one using the runtime type check {{init_state :: Counter}} and set the state of {{instance}} with the command:
+
+  set ok = instance <- init_state;
+
+{{ok}} is a boolean variable that indicates whether the operation succeeded. Generally speaking, setting the state of an automaton instance can fail if the state that is provided is not a valid one. The typechecker tries to prevent you from using an invalid state in the first place, and that's why the {{init_state :: Counter}} check is actually necessary, but it doesn't verify that integrity constraints (which just means mutable relation variables' keys at the moment) are actually met, since that's rather hard to do with just a static analysis of the code, so those constraints are checked only when you actually try to set the state of an automaton instance.
+
+The state of any automaton can be set at any time, any number of times. It's just like setting the value of a variable of an atomic type (like booleans, integers or floating point numbers) in any other language. The next step is to load the list of messages and send them in the given order to {{instance}} with the instruction:
+
+  ok = instance <- msg;
+
+Here too the variable {{ok}} indicates whether the message was processed successfully. Also note the {{msg_list :: CounterMsg*}} check, which is required to verify that whatever data was loaded from the input file was indeed a valid sequence of messages for {{Counter}}.
+
+The last instruction we have to manipulate static automata is used to take a snapshot of the state of an automaton instance:
+
+  read final_state <- instance;
+
+As already explained in the previous chapters the state of an automaton cannot be aliased in any way, so making a copy of it requires making a physical copy of at least some of the underlying data structures that are used to store it. How much data exactly has to be copied depends on the implementation and the target language, but it generally is a rather expensive operation, especially if the automaton contains mutable relation variables. In the worst case, the entirety of the data structures that encode its state will have to be physically copied.

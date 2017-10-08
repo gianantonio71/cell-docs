@@ -330,7 +330,7 @@ If one wanted to somehow partition the information contained in {{BookMarket}}, 
 
 The only thing that is new here is the reference to {{Publishing}} and {{Actors}} in the declaration of {{Market}}. It states that the information contained in the latter automaton is dependent on that contained in first two. In practice, this means that whenever you create an instance of {{Market}} you need to provide a reference to an instance of both {{Publishing}} and {{Actors}}, which methods and message handlers of {{Market}} have access to, but only in read-only mode. This wiring is static: once an automaton instance has been created, there's no way to change it. When creating those instances in Cell (as opposed to doing that from the host language in a mixed-language application) the wiring is not only fixed, but it's also entirely known at compile time. We will discuss the details later, when we talk about methods, message handlers and how automata are instantiated and used. Once foreign keys are implemented, it will also be possible to have them work across automata, that is, it will be possible to declare foreign keys from a field like {{book_id}} in {{Market}} to the {{book}} unary relation/set in {{Publishing}}. Dependencies between automata cannot be cyclical: two distinct automaton types are not allowed to reference, directly or indirectly, each other, and consequently neither are their instances. If two knowledge domains depend on each other, you'll have to merge them into a single one.
 
-Note that the above example is just meant to demonstrate automata wiring, and it should not be taken as design advice: it would never try to partition a tiny schema like {{BookMarket}} into even smaller ones, and I certainly don't recommend you do it either: as already mentioned above, schemas are meant to be large data structures, containing information about an entire knowledge domain, not about a single conceptual entity. But in a real application such schemas would be much larger, and therefore the data would have to be partitioned in order to stay manageable: in a company like Amazon.com, for example, customer data, product catalogs and information about orders are managed by different teams and stored in different databases, each of which has dozens or even hundreds of tables.
+Note that the above example is just meant to demonstrate automata wiring, and it should not be taken as design advice: it would never try to partition a tiny schema like {{BookMarket}} into even smaller ones, and I certainly don't recommend you do it either: as already mentioned above, schemas are meant to be large data structures, containing information about an entire knowledge domain or subdomain, not about a single conceptual entity. But in a real application such schemas would be much larger, and therefore the data would have to be partitioned in order to stay manageable: in a company like Amazon.com, for example, customer data, product catalogs and information about orders are managed by different teams and stored in different databases, each of which has dozens or even hundreds of tables.
 
 One note about terminology: in what follows I will use to terms dependant and dependee to indicate the automata involved in this kind of relationship: that is, {{Publishing}} and {{Actors}} are dependees of {{Market}}, and {{Market}} is a dependant of both {{Publishing}} and {{Actors}}.
 
@@ -339,43 +339,21 @@ Note also that the relatioship between dependant and dependees does not fit any 
 
 Nested automata
 
-Static automata can be not only wired together, but also nested inside each others. Here's an example:
+Static automata can not only be wired together, but also nested inside one another. Here's an example:
 
-  schema ChatServer {
-    logins : Logins;
-
-    msg_counter : Nat = 0;
-
-    pending_inputs(Nat, Byte*) [key: 0];
-    data_to_send(Nat, (Nat, String)) [key: 0];
+  schema CounterPair {
+    counter_1 : Counter;
+    counter_2 : Counter;
   }
 
-It defines a new automaton, {{ChatServer}}, which contains an instance of the {{Logins}} automaton we defined earlier (ignore for now the meaning of the other fields, it's not important in this context). When {{ChatServer}} is instantiated, an instance of {{Logins}} is automatically created as well, bound to the {{logins}} field. This is a sample value for the state of {{ChatServer}}:
+It defines a new automaton, {{CounterPair}}, which contains two instances the {{Counter}} automaton defined earlier. When {{CounterPair}} is instantiated, the two nested instances of {{Counter}} are automatically created as well, bound to the {{counter_1}} and {{counter_2}} fields. This is a sample value for the state of {{CounterPair}}:
 
-  ( logins: (
-      usernames: [
-        0 -> "tom",
-        1 -> "sara",
-        2 -> "betty",
-        3 -> "luke",
-        4 -> "clark"
-      ],
-      memberships: [
-        0, "football";
-        0, "politics";
-        2, "politics";
-        3, "football";
-        4, "football"
-      ]
-    ),
-
-    msg_counter = 0,
-    pending_inputs = [],
-    data_to_send = []
+  ( counter_1: (value: 1, updates: 1),
+    counter_2: (value: 0, updates: 0)
   )
 
 As you can see, the state of nested automata simply becomes part of the state of their parent, and can be updated only as part of an update of the state of their parent. We'll say more about that when we talk about updates and message handlers in the next chapter.
-Just like mutable relation variables, and automaton variables in general, nested automata cannot be aliased, that is, a variable like {{logins}} cannot be copied and is in general subject to the same limitations that apply to mutable relation variables. The fields/member variables of nested automata, on the other hand, can be accessed (using the familiar {{var.field}} syntax) just like the fields of their parents: with no restrictions for ordinary member variables, and with all the restrictions that apply in the case of mutable relation variables.
+Just like mutable relation variables, and automaton variables in general, nested automata cannot be aliased, that is, variables like {{counter_1}} and {{counter_2}} cannot be copied and are in general subject to the same limitations that apply to mutable relation variables. The fields/member variables of nested automata, on the other hand, can be accessed (using the familiar {{counter_1.value}} syntax) just like the fields of their parents: with no restrictions for ordinary member variables, and with all the restrictions that apply in the case of mutable relation variables.
 
 
 Methods
@@ -595,5 +573,7 @@ Derived information poses similar problems: base and derived data can get out of
 Several other types of inconsistencies can plague your datasets, even in the absence of duplicate or derived data, but a careful use of integrity constraints can prevent at least some of them, like required information that might be missing (e.g. missing mandatory attributes); information with the wrong multiplicity (e.g. an attribute that has several values even though it's supposed to have only one); and "dangling" foreign keys. Note that without integrity constraints, Cell's flavor of the relation model is especially vulnerable to these types of inconsistencies, in a way that both record-based systems and the standard relational model are not, at least not to the same extent. Integrity constraints are still a work in progress, as explained elsewhere, but unlike memoization they will hopefully be ready relatively soon.
 
 Another undesirable consequence of having duplicate or derived data in your schema is that it makes updates more complex. A stored derived relation for instance will have to be updated every time a tuple is inserted, updated or deleted in any of the relations it depends on, and that could well be a lot of places. On top of that, efficiently updating only the part of a derived data structure that has changed is typically a lot more complex that recalculating everything from scratch. So not only your code will in all likehood have more bugs, but you'll also have more work to do, and the extra code you'll have to write is going to be especially complex.
+
+There's also a Cell-specific reason to properly design your schemas, and it's related to orthogonal persistence. Orthogonal persistence requires the ability to restore the state of an automaton using a previously-taken snapshot of the state of another automaton of the same type. But when performing a restore operation you've no guarantees of any sort about the origin of the data you're dealing with: it could have been created manually; or it could have been produced by code that is not part of your application, for example by a script that processed other data; or it could come from an earlier version of your own application; or who knows what else. The bottom line is that in order to make sure that an automaton will never enter an invalid state you cannot rely on the correctness of the code that updates it: the only defence here is to design schemas to be so tight as to rule out as many invalid states as possible.
 
 One point that I could never emphasize enough is that the design of your schemas is the wrong place to be lazy or negligent: by all means cut corners in the actual code, if you think that will give you an edge: code is complex and time-consuming and difficult to write, and even the ugliest hacks can at times be justified. But there's plenty of reasons to try hard to get your data structures right, and no reason not to do it. Unlike code, data structures are both short and easy to design and write, so you're not going to save any effort by not doing that with the due diligence, but on the other hand you've got a lot to loose, because badly designed data structures will make your code more complex, less reliable and more difficult to read and understand.
